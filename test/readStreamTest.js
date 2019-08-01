@@ -4,6 +4,7 @@ const path = require('path');
 const temp = require('temp').track();
 const proxyquire = require('proxyquire').noCallThru();
 const through2 = require('through2');
+const generateWOFDB = require('./generateWOFDB');
 
 tape('readStream', (test) => {
   test.test('readStream should return from all requested types and populate wofAdminRecords', (t) => {
@@ -77,6 +78,8 @@ tape('readStream', (test) => {
           '123': {
             id: 123,
             name: 'name 1',
+            name_aliases: [],
+            name_langs: {},
             place_type: 'place type 1',
             lat: 12.121212,
             lon: 21.212121,
@@ -91,6 +94,8 @@ tape('readStream', (test) => {
           '456': {
             id: 456,
             name: 'name 2',
+            name_aliases: [],
+            name_langs: {},
             place_type: 'place type 2',
             lat: 13.131313,
             lon: 31.313131,
@@ -173,6 +178,77 @@ tape('readStream', (test) => {
         t.end();
       });
 
+    });
+  });
+  test.end();
+
+  test.test('load sqlite', t => {
+    temp.mkdir('tmp_sqlite', (err, temp_dir) => {
+      generateWOFDB(path.join(temp_dir, 'sqlite', 'whosonfirst-data-latest.db'), [
+        {
+          id: 0,
+          'wof:placetype': 'country',
+          properties: {
+            'wof:name': 'null island',
+            'geom:latitude': 0,
+            'geom:longitude': 0,
+            'edtf:deprecated': 0,
+            'wof:superseded_by': []
+          }
+        },
+        {
+          id: 421302191,
+          'wof:placetype': 'region',
+          properties: {
+            'wof:name': 'name 421302191',
+            'geom:latitude': 45.240295,
+            'geom:longitude': 3.916216,
+            'wof:superseded_by': []
+          }
+        },
+        {
+          id: 421302147,
+          'wof:placetype': 'region',
+          properties: {
+            'wof:name': 'name 421302191',
+            'geom:latitude': 45.240295,
+            'geom:longitude': 3.916216,
+            'wof:superseded_by': ['421302191']
+          }
+        },
+        {
+          id: 421302897,
+          'wof:placetype': 'locality',
+          properties: {
+            'geom:latitude': 4.2564,
+            'geom:longitude': -41.916216,
+            'wof:superseded_by': []
+          }
+        }
+      ]);
+      const records = {};
+      require('../src/readStream')
+        .create({datapath: temp_dir, sqlite: true}, ['whosonfirst-data-latest.db'], records)
+        .on('finish', (err) => {
+          t.notOk(err);
+          t.deepEquals(records, {
+            '421302191': {
+              id: 421302191,
+              name: 'name 421302191',
+              name_aliases: [],
+              name_langs: {},
+              abbreviation: undefined,
+              place_type: undefined,
+              lat: 45.240295,
+              lon: 3.916216,
+              bounding_box: undefined,
+              population: undefined,
+              popularity: undefined,
+              hierarchies: []
+            }
+          });
+          t.end();
+        });
     });
   });
 

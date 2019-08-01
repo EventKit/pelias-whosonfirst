@@ -1,4 +1,3 @@
-
 var peliasConfig = require( 'pelias-config' ).generate(require('./schema'));
 var readStreamModule = require('./src/readStream');
 var importStream = require('./src/importStream');
@@ -23,18 +22,19 @@ bundles.generateBundleList((err, bundlesToImport) => {
     throw new Error(err.message);
   }
 
-  const bundlesMetaFiles = bundlesToImport.map( (bundle) => { return bundle.replace('.tar.bz2', '.csv'); });
+  // This can be either csv or db files, the read stream module will do the job
+  const bundlesFiles = bundlesToImport.map( (bundle) => { return bundle.replace('.tar.bz2', '.csv'); });
 
   const readStream = readStreamModule.create(
     peliasConfig.imports.whosonfirst,
-    bundlesMetaFiles,
+    bundlesFiles,
     wofAdminRecords);
 
   // how to convert WOF records to Pelias Documents
   var documentGenerator = peliasDocGenerators.create(hierarchyFinder(wofAdminRecords));
 
   // the final destination of Pelias Documents
-  var dbClientStream = peliasDbclient();
+  var dbClientStream = peliasDbclient({name: 'whosonfirst'});
 
   // import WOF records into ES
   importStream(readStream, documentGenerator, dbClientStream, function () {

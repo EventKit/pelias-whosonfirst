@@ -35,9 +35,6 @@ tape('isNotNullIslandRelated tests', (test) => {
 
   });
 
-});
-
-tape('recordHasName', (test) => {
   test.test('non-postalcode placetype records should pass even if lat/lon is 0/0', (t) => {
     const input = {
       placetype: 'non-postalcode',
@@ -108,7 +105,7 @@ tape('recordHasName', (test) => {
 
   });
 
-  test.test('postalcode placetype records should not pass even if lat/lon is 0/0', (t) => {
+  test.test('postalcode placetype records should not pass if lat/lon is 0/0 (number)', (t) => {
     const input = {
       placetype: 'postalcode',
       geom_latitude: 0,
@@ -120,4 +117,18 @@ tape('recordHasName', (test) => {
       t.end();
     });
   });
+
+  test.test('postalcode placetype records should not pass if lat/lon is 0/0 (string)', (t) => {
+    const input = {
+      placetype: 'postalcode',
+      geom_latitude: '0.0',
+      geom_longitude: '0.0'
+    };
+
+    test_stream([input], isNotNullIslandRelated.create(), (err, actual) => {
+      t.deepEqual(actual, [], 'should have returned true');
+      t.end();
+    });
+  });
+  test.end();
 });

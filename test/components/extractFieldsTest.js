@@ -53,6 +53,8 @@ tape('readStreamComponents', function(test) {
       {
         id: 12345,
         name: 'name 1',
+        name_aliases: [],
+        name_langs: {},
         place_type: 'place type 1',
         lat: 12.121212,
         lon: 21.212121,
@@ -90,6 +92,8 @@ tape('readStreamComponents', function(test) {
       {
         id: 23456,
         name: undefined,
+        name_aliases: [],
+        name_langs: {},
         place_type: undefined,
         lat: undefined,
         lon: undefined,
@@ -127,6 +131,8 @@ tape('readStreamComponents', function(test) {
       {
         id: 12345,
         name: 'name 1',
+        name_aliases: [],
+        name_langs: {},
         place_type: 'place type 1',
         lat: 12.121212,
         lon: 21.212121,
@@ -150,40 +156,23 @@ tape('readStreamComponents', function(test) {
   });
 
   test.test('missing wof:hierarchy should synthesize from wof:placetype and id', t => {
-    const input = [
-      {
-        id: 12345,
-        properties: {
-          'wof:name': 'name 1',
-          'wof:placetype': 'place type 1',
-          'geom:latitude': 12.121212,
-          'geom:longitude': 21.212121,
-          'geom:bbox': '-13.691314,49.909613,1.771169,60.847886',
-        }
+    const input = [{
+      id: 12345,
+      properties: {
+        'wof:name': 'name 1',
+        'wof:placetype': 'place type 1',
+        'geom:latitude': 12.121212,
+        'geom:longitude': 21.212121,
+        'geom:bbox': '-13.691314,49.909613,1.771169,60.847886',
       }
-    ];
+    }];
+    const expected_hierarchies = [{
+      'place type 1_id': 12345
+    }];
 
-    const expected = [
-      {
-        id: 12345,
-        name: 'name 1',
-        place_type: 'place type 1',
-        lat: 12.121212,
-        lon: 21.212121,
-        population: undefined,
-        popularity: undefined,
-        abbreviation: undefined,
-        bounding_box: '-13.691314,49.909613,1.771169,60.847886',
-        hierarchies: [
-          {
-            'place type 1_id': 12345
-          }
-        ]
-      }
-    ];
-
-    test_stream(input, extractFields.create(), function(err, actual) {
-      t.deepEqual(actual, expected, 'stream should contain only objects with id and properties');
+    test_stream(input, extractFields.create(), function(err, output) {
+      const record = output[0];
+      t.deepEqual(record.hierarchies, expected_hierarchies, 'id is set');
       t.end();
     });
 
@@ -197,34 +186,13 @@ tape('readStreamComponents', function(test) {
           'wof:name': 'name 1',
           'wof:placetype': 'place type 1',
           'geom:latitude': 12.121212,
-          'geom:longitude': 21.212121,
-          'geom:bbox': '-13.691314,49.909613,1.771169,60.847886',
-          'wof:abbreviation': 'XY'
+          'geom:longitude': 21.212121
         }
       }
     ];
 
-    var expected = [
-      {
-        id: 12345,
-        name: 'name 1',
-        place_type: 'place type 1',
-        lat: 12.121212,
-        lon: 21.212121,
-        population: undefined,
-        popularity: undefined,
-        abbreviation: 'XY',
-        bounding_box: '-13.691314,49.909613,1.771169,60.847886',
-        hierarchies: [
-          {
-            'place type 1_id': 12345
-          }
-        ]
-      }
-    ];
-
     test_stream(input, extractFields.create(), function(err, actual) {
-      t.deepEqual(actual, expected, 'popularity should not be set');
+      t.deepEqual(actual[0].popularity, undefined, 'popularity should not be set');
       t.end();
     });
 
@@ -239,34 +207,14 @@ tape('readStreamComponents', function(test) {
           'wof:placetype': 'county',
           'geom:latitude': 12.121212,
           'geom:longitude': 21.212121,
-          'iso:country': 'US',
           'wof:country': 'US',
           'qs:a2_alt': 'qs:a2_alt value'
         }
       }
     ];
 
-    var expected = [
-      {
-        id: 12345,
-        name: 'qs:a2_alt value',
-        place_type: 'county',
-        lat: 12.121212,
-        lon: 21.212121,
-        population: undefined,
-        popularity: undefined,
-        bounding_box: undefined,
-        abbreviation: undefined,
-        hierarchies: [
-          {
-            'county_id': 12345
-          }
-        ]
-      }
-    ];
-
     test_stream(input, extractFields.create(), function(err, actual) {
-      t.deepEqual(actual, expected, 'qs:a2_alt should be used for name');
+      t.deepEqual(actual[0].name, 'qs:a2_alt value', 'qs:a2_alt should be used for name');
       t.end();
     });
 
@@ -286,30 +234,10 @@ tape('readStreamComponents', function(test) {
       }
     ];
 
-    var expected = [
-      {
-        id: 12345,
-        name: 'wof:name value',
-        place_type: 'county',
-        lat: 12.121212,
-        lon: 21.212121,
-        population: undefined,
-        popularity: undefined,
-        bounding_box: undefined,
-        abbreviation: undefined,
-        hierarchies: [
-          {
-            'county_id': 12345
-          }
-        ]
-      }
-    ];
-
     test_stream(input, extractFields.create(), function(err, actual) {
-      t.deepEqual(actual, expected, 'wof:name should be used for name');
+      t.deepEqual(actual[0].name, 'wof:name value', 'wof:name should be used for name');
       t.end();
     });
-
   });
 
   test.test('wof:placetype=county and iso2:country!=US should use wof:name for name', function(t) {
@@ -327,27 +255,8 @@ tape('readStreamComponents', function(test) {
       }
     ];
 
-    var expected = [
-      {
-        id: 12345,
-        name: 'wof:name value',
-        place_type: 'county',
-        lat: 12.121212,
-        lon: 21.212121,
-        population: undefined,
-        popularity: undefined,
-        bounding_box: undefined,
-        abbreviation: undefined,
-        hierarchies: [
-          {
-            'county_id': 12345
-          }
-        ]
-      }
-    ];
-
     test_stream(input, extractFields.create(), function(err, actual) {
-      t.deepEqual(actual, expected, 'wof:name should be used for name');
+      t.deepEqual(actual[0].name, 'wof:name value', 'wof:name should be used for name');
       t.end();
     });
 
@@ -367,23 +276,9 @@ tape('readStreamComponents', function(test) {
       }
     ];
 
-    var expected = [
-      {
-        id: 12345,
-        name: 'wof:name value',
-        place_type: undefined,
-        lat: 14.141414,
-        lon: 23.232323,
-        population: undefined,
-        popularity: undefined,
-        bounding_box: undefined,
-        abbreviation: undefined,
-        hierarchies: []
-      }
-    ];
-
     test_stream(input, extractFields.create(), function(err, actual) {
-      t.deepEqual(actual, expected, 'label geometry is used');
+      t.deepEqual(actual[0].lat, 14.141414, 'label geometry is used');
+      t.deepEqual(actual[0].lon, 23.232323, 'label geometry is used');
       t.end();
     });
   });
@@ -402,23 +297,10 @@ tape('readStreamComponents', function(test) {
       }
     ];
 
-    var expected = [
-      {
-        id: 12345,
-        name: 'wof:name value',
-        place_type: undefined,
-        lat: 12.121212,
-        lon: 21.212121,
-        population: undefined,
-        popularity: undefined,
-        bounding_box: '-14.691314,50.909613,2.771169,61.847886',
-        abbreviation: undefined,
-        hierarchies: []
-      }
-    ];
+    const expected_bounding_box = '-14.691314,50.909613,2.771169,61.847886';
 
     test_stream(input, extractFields.create(), function(err, actual) {
-      t.deepEqual(actual, expected, 'label geometry is used');
+      t.deepEqual(actual[0].bounding_box, expected_bounding_box, 'label geometry is used');
       t.end();
     });
   });
@@ -437,25 +319,116 @@ tape('readStreamComponents', function(test) {
       }
     ];
 
-    var expected = [
+    test_stream(input, extractFields.create(), function(err, actual) {
+      t.deepEqual(actual[0].bounding_box, '', 'label geometry is used');
+      t.end();
+    });
+  });
+
+  test.test('label:{lang}_x_preferred_longname should be used for name when both it and eng label are available', function (t) {
+    var input = [
       {
         id: 12345,
-        name: 'wof:name value',
-        place_type: undefined,
-        lat: 12.121212,
-        lon: 21.212121,
-        population: undefined,
-        popularity: undefined,
-        bounding_box: '',
-        abbreviation: undefined,
-        hierarchies: []
+        properties: {
+          'wof:name': 'wof:name value',
+          'wof:label': 'wof:label value',
+          'label:eng_x_preferred_longname': ['label:eng_x_preferred_longname value'],
+          'label:spa_x_preferred_longname': ['label:spa_x_preferred_longname value'],
+          'wof:lang_x_official': ['spa'],
+          'geom:latitude': 12.121212,
+          'geom:longitude': 21.212121,
+          'lbl:bbox': ''
+        }
       }
     ];
 
-    test_stream(input, extractFields.create(), function(err, actual) {
-      t.deepEqual(actual, expected, 'label geometry is used');
+    const expected_name = 'label:spa_x_preferred_longname value';
+    const expected_name_aliases = [
+      'label:spa_x_preferred_longname value',
+      'label:eng_x_preferred_longname value'
+    ];
+
+    test_stream(input, extractFields.create(), function (err, actual) {
+      t.deepEqual(actual[0].name, expected_name, 'label:eng_x_preferred_longname is used for name');
+      t.deepEqual(actual[0].name_aliases, expected_name_aliases, 'all longnames used as name aliases');
       t.end();
     });
+
+  });
+
+  test.test('label:eng_x_preferred_longname should be used for name when official language label unavailable', function (t) {
+    var input = [
+      {
+        id: 12345,
+        properties: {
+          'wof:name': 'wof:name value',
+          'wof:label': 'wof:label value',
+          'label:eng_x_preferred_longname': ['label:eng_x_preferred_longname value'],
+          'wof:lang_x_official': ['spa'],
+          'geom:latitude': 12.121212,
+          'geom:longitude': 21.212121,
+          'lbl:bbox': ''
+        }
+      }
+    ];
+
+    test_stream(input, extractFields.create(), function (err, actual) {
+      t.deepEqual(actual[0].name, 'label:eng_x_preferred_longname value', 'label:eng_x_preferred_longname is used for name');
+      t.end();
+    });
+
+  });
+
+  test.test('label:eng_x_preferred_longname when eng_x_preferred exists', function (t) {
+    var input = [
+      {
+        id: 12345,
+        properties: {
+          'wof:name': 'wof:name value',
+          'wof:label': 'wof:label value',
+          'label:eng_x_preferred_longname': ['label:eng_x_preferred_longname value'],
+          'label:eng_x_preferred': ['label:eng_x_preferred value'],
+          'geom:latitude': 12.121212,
+          'geom:longitude': 21.212121,
+          'lbl:bbox': ''
+        }
+      }
+    ];
+
+    const expected_name = 'label:eng_x_preferred_longname value';
+    const expected_name_aliases = [
+      'label:eng_x_preferred_longname value',
+      'label:eng_x_preferred value'
+    ];
+
+    test_stream(input, extractFields.create(), function (err, actual) {
+      t.deepEqual(actual[0].name, expected_name, 'label:eng_x_preferred_longname is used for name');
+      t.deepEqual(actual[0].name_aliases, expected_name_aliases, 'label:eng_x_* values used for name aliases');
+      t.end();
+    });
+
+  });
+
+  test.test('label:eng_x_preferred should be used for name when both it and wof:label are available', function (t) {
+    var input = [
+      {
+        id: 12345,
+        properties: {
+          'wof:name': 'wof:name value',
+          'wof:label': 'wof:label value',
+          'label:eng_x_preferred': ['label:eng_x_preferred value'],
+          'geom:latitude': 12.121212,
+          'geom:longitude': 21.212121,
+          'lbl:bbox': ''
+        }
+      }
+    ];
+
+    test_stream(input, extractFields.create(), function (err, actual) {
+      t.deepEqual(actual[0].name, 'label:eng_x_preferred value', 'label:eng_x_preferred is used for name');
+      t.end();
+    });
+
   });
 
   test.test('wof:label should be used for name when both it and wof:name are available', function(t) {
@@ -472,23 +445,8 @@ tape('readStreamComponents', function(test) {
       }
     ];
 
-    var expected = [
-      {
-        id: 12345,
-        name: 'wof:label value',
-        place_type: undefined,
-        lat: 12.121212,
-        lon: 21.212121,
-        population: undefined,
-        popularity: undefined,
-        bounding_box: '',
-        abbreviation: undefined,
-        hierarchies: []
-      }
-    ];
-
     test_stream(input, extractFields.create(), function(err, actual) {
-      t.deepEqual(actual, expected, 'wof:label is used for name');
+      t.deepEqual(actual[0].name, 'wof:label value', 'wof:label is used for name');
       t.end();
     });
 
@@ -501,33 +459,14 @@ tape('readStreamComponents', function(test) {
         properties: {
           'wof:name': 'wof:name value',
           'wof:placetype': 'locality',
-          'wof:abbreviation': 'undesired',
-          'wof:shortcode': 'desired'
+          'wof:abbreviation': 'wof:abbreviation value',
+          'wof:shortcode': 'wof:shortcode value'
         }
       }
     ];
 
-    var expected = [
-      {
-        id: 12345,
-        name: 'wof:name value',
-        place_type: 'locality',
-        lat: undefined,
-        lon: undefined,
-        population: undefined,
-        popularity: undefined,
-        bounding_box: undefined,
-        abbreviation: 'desired',
-        hierarchies: [
-          {
-            'locality_id': 12345
-          }
-        ]
-      }
-    ];
-
     test_stream(input, extractFields.create(), function(err, actual) {
-      t.deepEqual(actual, expected, 'wof:shortcode is used for abbreviation');
+      t.deepEqual(actual[0].abbreviation, 'wof:shortcode value', 'wof:shortcode is used for abbreviation');
       t.end();
     });
   });
@@ -539,32 +478,13 @@ tape('readStreamComponents', function(test) {
         properties: {
           'wof:name': 'wof:name value',
           'wof:placetype': 'locality',
-          'wof:abbreviation': 'desired'
+          'wof:abbreviation': 'wof:abbreviation value'
         }
       }
     ];
 
-    var expected = [
-      {
-        id: 12345,
-        name: 'wof:name value',
-        place_type: 'locality',
-        lat: undefined,
-        lon: undefined,
-        population: undefined,
-        popularity: undefined,
-        bounding_box: undefined,
-        abbreviation: 'desired',
-        hierarchies: [
-          {
-            'locality_id': 12345
-          }
-        ]
-      }
-    ];
-
     test_stream(input, extractFields.create(), function(err, actual) {
-      t.deepEqual(actual, expected, 'wof:shortcode is used for abbreviation');
+      t.deepEqual(actual[0].abbreviation, 'wof:abbreviation value', 'wof:shortcode is used for abbreviation');
       t.end();
     });
   });
@@ -576,8 +496,8 @@ tape('readStreamComponents', function(test) {
         properties: {
           'wof:name': 'wof:name value',
           'wof:placetype': 'country',
-          'wof:country': 'XY',
-          'wof:abbreviation': 'YZ'
+          'wof:country': 'wof:country value',
+          'wof:abbreviation': 'wof:abbreviation value'
         }
       }
     ];
@@ -586,6 +506,8 @@ tape('readStreamComponents', function(test) {
       {
         id: 12345,
         name: 'wof:name value',
+        name_aliases: [],
+        name_langs: {},
         place_type: 'country',
         lat: undefined,
         lon: undefined,
@@ -602,7 +524,7 @@ tape('readStreamComponents', function(test) {
     ];
 
     test_stream(input, extractFields.create(), function(err, actual) {
-      t.deepEqual(actual, expected, 'wof:country is used for abbreviation');
+      t.deepEqual(actual[0].abbreviation, 'wof:country value', 'wof:country is used for abbreviation');
       t.end();
     });
 
@@ -622,27 +544,8 @@ tape('readStreamComponents', function(test) {
       }
     ];
 
-    var expected = [
-      {
-        id: 12345,
-        name: 'wof:name value',
-        place_type: 'dependency',
-        lat: undefined,
-        lon: undefined,
-        population: undefined,
-        popularity: undefined,
-        bounding_box: undefined,
-        abbreviation: 'value from wof:shortcode',
-        hierarchies: [
-          {
-            'dependency_id': 12345
-          }
-        ]
-      }
-    ];
-
     test_stream(input, extractFields.create(), function(err, actual) {
-      t.deepEqual(actual, expected, 'wof:shortcode is used for abbreviation');
+      t.deepEqual(actual[0].abbreviation, 'value from wof:shortcode', 'wof:shortcode is used for abbreviation');
       t.end();
     });
   });
@@ -660,27 +563,8 @@ tape('readStreamComponents', function(test) {
       }
     ];
 
-    var expected = [
-      {
-        id: 12345,
-        name: 'wof:name value',
-        place_type: 'dependency',
-        lat: undefined,
-        lon: undefined,
-        population: undefined,
-        popularity: undefined,
-        bounding_box: undefined,
-        abbreviation: 'value from wof:abbreviation',
-        hierarchies: [
-          {
-            'dependency_id': 12345
-          }
-        ]
-      }
-    ];
-
     test_stream(input, extractFields.create(), function(err, actual) {
-      t.deepEqual(actual, expected, 'wof:abbreviation is used for abbreviation');
+      t.deepEqual(actual[0].abbreviation, 'value from wof:abbreviation', 'wof:abbreviation is used for abbreviation');
       t.end();
     });
   });
@@ -697,27 +581,8 @@ tape('readStreamComponents', function(test) {
       }
     ];
 
-    var expected = [
-      {
-        id: 12345,
-        name: 'wof:name value',
-        place_type: 'dependency',
-        lat: undefined,
-        lon: undefined,
-        population: undefined,
-        popularity: undefined,
-        bounding_box: undefined,
-        abbreviation: 'value from wof:country',
-        hierarchies: [
-          {
-            'dependency_id': 12345
-          }
-        ]
-      }
-    ];
-
     test_stream(input, extractFields.create(), function(err, actual) {
-      t.deepEqual(actual, expected, 'wof:country is used for abbreviation');
+      t.deepEqual(actual[0].abbreviation, 'value from wof:country', 'wof:country is used for abbreviation');
       t.end();
     });
 
@@ -731,37 +596,18 @@ tape('readStreamComponents', function(test) {
           'wof:name': 'wof:name value',
           'wof:placetype': 'country',
           'wof:country': undefined,
-          'wof:abbreviation': 'YZ'
+          'wof:abbreviation': 'value from wof:abbreviation'
         }
       }
     ];
 
-    var expected = [
-      {
-        id: 12345,
-        name: 'wof:name value',
-        place_type: 'country',
-        lat: undefined,
-        lon: undefined,
-        population: undefined,
-        popularity: undefined,
-        bounding_box: undefined,
-        abbreviation: 'YZ',
-        hierarchies: [
-          {
-            'country_id': 12345
-          }
-        ]
-      }
-    ];
-
     test_stream(input, extractFields.create(), function(err, actual) {
-      t.deepEqual(actual, expected, 'wof:abbreviation is used for abbreviation');
+      t.deepEqual(actual[0].abbreviation, 'value from wof:abbreviation', 'wof:abbreviation is used for abbreviation');
       t.end();
     });
 
   });
-
+  test.end();
 });
 
 tape('population fallback tests', (test) => {
@@ -787,1005 +633,427 @@ tape('population fallback tests', (test) => {
       }
     ];
 
-    var expected = [
-      {
-        id: 12345,
-        name: 'wof:name value',
-        place_type: 'country',
-        lat: undefined,
-        lon: undefined,
-        population: 10,
-        popularity: undefined,
-        bounding_box: undefined,
-        abbreviation: undefined,
-        hierarchies: [ { country_id: 12345 }]
-      }
-    ];
-
     test_stream(input, extractFields.create(), (err, actual) => {
-      t.deepEqual(actual, expected, 'mz:population');
+      t.deepEqual(actual[0].population, 10, 'mz:population used');
       t.end();
     });
-
   });
 
   test.test('wof:population should be used for population when higher-ranked aren\'t available', (t) => {
-    var input = [
-      {
-        id: 12345,
-        properties: {
-          'wof:name': 'wof:name value',
-          'wof:placetype': 'country',
-          'wof:population': 11,
-          'wk:population': 12,
-          'gn:population': 13,
-          'gn:pop': 14,
-          'qs:pop': 15,
-          'qs:gn_pop': 16,
-          'zs:pop10': 17,
-          'meso:pop': 18,
-          'statoids:population': 19,
-          'ne:pop_est': 20
-        }
+    var input = [{
+      id: 12345,
+      properties: {
+        'wof:name': 'wof:name value',
+        'wof:placetype': 'country',
+        'wof:population': 11,
+        'wk:population': 12,
+        'gn:population': 13,
+        'gn:pop': 14,
+        'qs:pop': 15,
+        'qs:gn_pop': 16,
+        'zs:pop10': 17,
+        'meso:pop': 18,
+        'statoids:population': 19,
+        'ne:pop_est': 20
       }
-    ];
-
-    var expected = [
-      {
-        id: 12345,
-        name: 'wof:name value',
-        place_type: 'country',
-        lat: undefined,
-        lon: undefined,
-        population: 11,
-        popularity: undefined,
-        bounding_box: undefined,
-        abbreviation: undefined,
-        hierarchies: [ { country_id: 12345 }]
-      }
-    ];
+    }];
 
     test_stream(input, extractFields.create(), (err, actual) => {
-      t.deepEqual(actual, expected, 'wof:population');
+      t.deepEqual(actual[0].population, 11, 'wof:population used');
       t.end();
     });
-
   });
 
   test.test('wk:population should be used for population when higher-ranked aren\'t available', (t) => {
-    var input = [
-      {
-        id: 12345,
-        properties: {
-          'wof:name': 'wof:name value',
-          'wof:placetype': 'country',
-          'wk:population': 12,
-          'gn:population': 13,
-          'gn:pop': 14,
-          'qs:pop': 15,
-          'qs:gn_pop': 16,
-          'zs:pop10': 17,
-          'meso:pop': 18,
-          'statoids:population': 19,
-          'ne:pop_est': 20
-        }
+    var input = [{
+      id: 12345,
+      properties: {
+        'wof:name': 'wof:name value',
+        'wof:placetype': 'country',
+        'wk:population': 12,
+        'gn:population': 13,
+        'gn:pop': 14,
+        'qs:pop': 15,
+        'qs:gn_pop': 16,
+        'zs:pop10': 17,
+        'meso:pop': 18,
+        'statoids:population': 19,
+        'ne:pop_est': 20
       }
-    ];
-
-    var expected = [
-      {
-        id: 12345,
-        name: 'wof:name value',
-        place_type: 'country',
-        lat: undefined,
-        lon: undefined,
-        population: 12,
-        popularity: undefined,
-        bounding_box: undefined,
-        abbreviation: undefined,
-        hierarchies: [ { country_id: 12345 }]
-      }
-    ];
+    }];
 
     test_stream(input, extractFields.create(), (err, actual) => {
-      t.deepEqual(actual, expected, 'wk:population');
+      t.deepEqual(actual[0].population, 12, 'wk:population used');
       t.end();
     });
-
   });
 
   test.test('gn:population should be used for population when higher-ranked aren\'t available', (t) => {
-    var input = [
-      {
-        id: 12345,
-        properties: {
-          'wof:name': 'wof:name value',
-          'wof:placetype': 'country',
-          'gn:population': 13,
-          'gn:pop': 14,
-          'qs:pop': 15,
-          'qs:gn_pop': 16,
-          'zs:pop10': 17,
-          'meso:pop': 18,
-          'statoids:population': 19,
-          'ne:pop_est': 20
-        }
+    var input = [{
+      id: 12345,
+      properties: {
+        'wof:name': 'wof:name value',
+        'wof:placetype': 'country',
+        'gn:population': 13,
+        'gn:pop': 14,
+        'qs:pop': 15,
+        'qs:gn_pop': 16,
+        'zs:pop10': 17,
+        'meso:pop': 18,
+        'statoids:population': 19,
+        'ne:pop_est': 20
       }
-    ];
-
-    var expected = [
-      {
-        id: 12345,
-        name: 'wof:name value',
-        place_type: 'country',
-        lat: undefined,
-        lon: undefined,
-        population: 13,
-        popularity: undefined,
-        bounding_box: undefined,
-        abbreviation: undefined,
-        hierarchies: [ { country_id: 12345 }]
-      }
-    ];
+    }];
 
     test_stream(input, extractFields.create(), (err, actual) => {
-      t.deepEqual(actual, expected, 'gn:population');
+      t.deepEqual(actual[0].population, 13, 'gn:population used');
       t.end();
     });
-
   });
 
   test.test('gn:pop should be used for population when higher-ranked aren\'t available', (t) => {
-    var input = [
-      {
-        id: 12345,
-        properties: {
-          'wof:name': 'wof:name value',
-          'wof:placetype': 'country',
-          'gn:pop': 14,
-          'qs:pop': 15,
-          'qs:gn_pop': 16,
-          'zs:pop10': 17,
-          'meso:pop': 18,
-          'statoids:population': 19,
-          'ne:pop_est': 20
-        }
+    var input = [{
+      id: 12345,
+      properties: {
+        'wof:name': 'wof:name value',
+        'wof:placetype': 'country',
+        'gn:pop': 14,
+        'qs:pop': 15,
+        'qs:gn_pop': 16,
+        'zs:pop10': 17,
+        'meso:pop': 18,
+        'statoids:population': 19,
+        'ne:pop_est': 20
       }
-    ];
-
-    var expected = [
-      {
-        id: 12345,
-        name: 'wof:name value',
-        place_type: 'country',
-        lat: undefined,
-        lon: undefined,
-        population: 14,
-        popularity: undefined,
-        bounding_box: undefined,
-        abbreviation: undefined,
-        hierarchies: [ { country_id: 12345 }]
-      }
-    ];
+    }];
 
     test_stream(input, extractFields.create(), (err, actual) => {
-      t.deepEqual(actual, expected, 'gn:pop');
+      t.deepEqual(actual[0].population, 14, 'gn:pop used');
       t.end();
     });
-
   });
 
   test.test('qs:pop should be used for population when higher-ranked aren\'t available', (t) => {
-    var input = [
-      {
-        id: 12345,
-        properties: {
-          'wof:name': 'wof:name value',
-          'wof:placetype': 'country',
-          'qs:pop': 15,
-          'qs:gn_pop': 16,
-          'zs:pop10': 17,
-          'meso:pop': 18,
-          'statoids:population': 19,
-          'ne:pop_est': 20
-        }
+    var input = [{
+      id: 12345,
+      properties: {
+        'wof:name': 'wof:name value',
+        'wof:placetype': 'country',
+        'qs:pop': 15,
+        'qs:gn_pop': 16,
+        'zs:pop10': 17,
+        'meso:pop': 18,
+        'statoids:population': 19,
+        'ne:pop_est': 20
       }
-    ];
-
-    var expected = [
-      {
-        id: 12345,
-        name: 'wof:name value',
-        place_type: 'country',
-        lat: undefined,
-        lon: undefined,
-        population: 15,
-        popularity: undefined,
-        bounding_box: undefined,
-        abbreviation: undefined,
-        hierarchies: [ { country_id: 12345 }]
-      }
-    ];
+    }];
 
     test_stream(input, extractFields.create(), (err, actual) => {
-      t.deepEqual(actual, expected, 'qs:pop');
+      t.deepEqual(actual[0].population, 15, 'qs:pop used');
       t.end();
     });
-
   });
 
   test.test('qs:gn_pop should be used for population when higher-ranked aren\'t available', (t) => {
-    var input = [
-      {
-        id: 12345,
-        properties: {
-          'wof:name': 'wof:name value',
-          'wof:placetype': 'country',
-          'qs:gn_pop': 16,
-          'zs:pop10': 17,
-          'meso:pop': 18,
-          'statoids:population': 19,
-          'ne:pop_est': 20
-        }
+    var input = [{
+      id: 12345,
+      properties: {
+        'wof:name': 'wof:name value',
+        'wof:placetype': 'country',
+        'qs:gn_pop': 16,
+        'zs:pop10': 17,
+        'meso:pop': 18,
+        'statoids:population': 19,
+        'ne:pop_est': 20
       }
-    ];
-
-    var expected = [
-      {
-        id: 12345,
-        name: 'wof:name value',
-        place_type: 'country',
-        lat: undefined,
-        lon: undefined,
-        population: 16,
-        popularity: undefined,
-        bounding_box: undefined,
-        abbreviation: undefined,
-        hierarchies: [ { country_id: 12345 }]
-      }
-    ];
+    }];
 
     test_stream(input, extractFields.create(), (err, actual) => {
-      t.deepEqual(actual, expected, 'qs:gn_pop');
+      t.deepEqual(actual[0].population, 16, 'qs:gn_pop used');
       t.end();
     });
-
   });
 
   test.test('zs:pop10 should be used for population when higher-ranked aren\'t available', (t) => {
-    var input = [
-      {
-        id: 12345,
-        properties: {
-          'wof:name': 'wof:name value',
-          'wof:placetype': 'country',
-          'zs:pop10': 17,
-          'meso:pop': 18,
-          'statoids:population': 19,
-          'ne:pop_est': 20
-        }
+    var input = [{
+      id: 12345,
+      properties: {
+        'wof:name': 'wof:name value',
+        'wof:placetype': 'country',
+        'zs:pop10': 17,
+        'meso:pop': 18,
+        'statoids:population': 19,
+        'ne:pop_est': 20
       }
-    ];
-
-    var expected = [
-      {
-        id: 12345,
-        name: 'wof:name value',
-        place_type: 'country',
-        lat: undefined,
-        lon: undefined,
-        population: 17,
-        popularity: undefined,
-        bounding_box: undefined,
-        abbreviation: undefined,
-        hierarchies: [ { country_id: 12345 }]
-      }
-    ];
+    }];
 
     test_stream(input, extractFields.create(), (err, actual) => {
-      t.deepEqual(actual, expected, 'zs:pop10');
+      t.deepEqual(actual[0].population, 17, 'zs:pop10 used');
       t.end();
     });
-
   });
 
   test.test('meso:pop should be used for population when higher-ranked aren\'t available', (t) => {
-    var input = [
-      {
-        id: 12345,
-        properties: {
-          'wof:name': 'wof:name value',
-          'wof:placetype': 'country',
-          'meso:pop': 18,
-          'statoids:population': 19,
-          'ne:pop_est': 20
-        }
+    var input = [{
+      id: 12345,
+      properties: {
+        'wof:name': 'wof:name value',
+        'wof:placetype': 'country',
+        'meso:pop': 18,
+        'statoids:population': 19,
+        'ne:pop_est': 20
       }
-    ];
-
-    var expected = [
-      {
-        id: 12345,
-        name: 'wof:name value',
-        place_type: 'country',
-        lat: undefined,
-        lon: undefined,
-        population: 18,
-        popularity: undefined,
-        bounding_box: undefined,
-        abbreviation: undefined,
-        hierarchies: [ { country_id: 12345 }]
-      }
-    ];
+    }];
 
     test_stream(input, extractFields.create(), (err, actual) => {
-      t.deepEqual(actual, expected, 'meso:pop');
+      t.deepEqual(actual[0].population, 18, 'meso:pop used');
       t.end();
     });
-
   });
 
   test.test('statoids:population should be used for population when higher-ranked aren\'t available', (t) => {
-    var input = [
-      {
-        id: 12345,
-        properties: {
-          'wof:name': 'wof:name value',
-          'wof:placetype': 'country',
-          'statoids:population': 19,
-          'ne:pop_est': 20
-        }
+    var input = [{
+      id: 12345,
+      properties: {
+        'wof:name': 'wof:name value',
+        'wof:placetype': 'country',
+        'statoids:population': 19,
+        'ne:pop_est': 20
       }
-    ];
-
-    var expected = [
-      {
-        id: 12345,
-        name: 'wof:name value',
-        place_type: 'country',
-        lat: undefined,
-        lon: undefined,
-        population: 19,
-        popularity: undefined,
-        bounding_box: undefined,
-        abbreviation: undefined,
-        hierarchies: [ { country_id: 12345 }]
-      }
-    ];
+    }];
 
     test_stream(input, extractFields.create(), (err, actual) => {
-      t.deepEqual(actual, expected, 'statoids:population');
+      t.deepEqual(actual[0].population, 19, 'statoids:population used');
       t.end();
     });
-
   });
 
   test.test('ne:pop_est should be used for population when higher-ranked aren\'t available', (t) => {
-    var input = [
-      {
-        id: 12345,
-        properties: {
-          'wof:name': 'wof:name value',
-          'wof:placetype': 'country',
-          'ne:pop_est': 20
-        }
+    var input = [{
+      id: 12345,
+      properties: {
+        'wof:name': 'wof:name value',
+        'wof:placetype': 'country',
+        'ne:pop_est': 20
       }
-    ];
-
-    var expected = [
-      {
-        id: 12345,
-        name: 'wof:name value',
-        place_type: 'country',
-        lat: undefined,
-        lon: undefined,
-        population: 20,
-        popularity: undefined,
-        bounding_box: undefined,
-        abbreviation: undefined,
-        hierarchies: [ { country_id: 12345 }]
-      }
-    ];
+    }];
 
     test_stream(input, extractFields.create(), (err, actual) => {
-      t.deepEqual(actual, expected, 'ne:pop_est');
+      t.deepEqual(actual[0].population, 20, 'ne:pop_est used');
       t.end();
     });
 
   });
 
   test.test('population should be undefined when no recognized population fields are available', (t) => {
-    var input = [
-      {
-        id: 12345,
-        properties: {
-          'wof:name': 'wof:name value',
-          'wof:placetype': 'country'
-        }
+    var input = [{
+      id: 12345,
+      properties: {
+        'wof:name': 'wof:name value',
+        'wof:placetype': 'country'
       }
-    ];
-
-    var expected = [
-      {
-        id: 12345,
-        name: 'wof:name value',
-        place_type: 'country',
-        lat: undefined,
-        lon: undefined,
-        population: undefined,
-        popularity: undefined,
-        bounding_box: undefined,
-        abbreviation: undefined,
-        hierarchies: [ { country_id: 12345 }]
-      }
-    ];
+    }];
 
     test_stream(input, extractFields.create(), (err, actual) => {
-      t.deepEqual(actual, expected, 'should be undefined');
+      t.deepEqual(actual[0].population, undefined, 'population should be undefined');
       t.end();
     });
 
   });
 
   test.test('string population fields should be converted to integer', (t) => {
-    var input = [
-      {
-        id: 12345,
-        properties: {
-          'wof:name': 'wof:name value',
-          'wof:placetype': 'country',
-          'mz:population': '10',
-          'wof:population': 11,
-          'wk:population': 12,
-          'gn:population': 13,
-          'gn:pop': 14,
-          'qs:pop': 15,
-          'qs:gn_pop': 16,
-          'zs:pop10': 17,
-          'meso:pop': 18,
-          'statoids:population': 19,
-          'ne:pop_est': 20
-        }
+    var input = [{
+      id: 12345,
+      properties: {
+        'wof:name': 'wof:name value',
+        'wof:placetype': 'country',
+        'mz:population': '10'
       }
-    ];
-
-    var expected = [
-      {
-        id: 12345,
-        name: 'wof:name value',
-        place_type: 'country',
-        lat: undefined,
-        lon: undefined,
-        population: 10,
-        popularity: undefined,
-        bounding_box: undefined,
-        abbreviation: undefined,
-        hierarchies: [ { country_id: 12345 }]
-      }
-    ];
+    }];
 
     test_stream(input, extractFields.create(), (err, actual) => {
-      t.deepEqual(actual, expected, 'mz:population');
+      t.deepEqual(actual[0].population, 10, 'string population value converted to integer');
       t.end();
     });
-
   });
 
   test.test('unparseable-as-integer population fields should be skipped', (t) => {
-    var input = [
-      {
-        id: 12345,
-        properties: {
-          'wof:name': 'wof:name value',
-          'wof:placetype': 'country',
-          'mz:population': 'this cannot be parsed an integer',
-          'wof:population': 11,
-          'wk:population': 12,
-          'gn:population': 13,
-          'gn:pop': 14,
-          'qs:pop': 15,
-          'qs:gn_pop': 16,
-          'zs:pop10': 17,
-          'meso:pop': 18,
-          'statoids:population': 19,
-          'ne:pop_est': 20
-        }
+    var input = [{
+      id: 12345,
+      properties: {
+        'wof:name': 'wof:name value',
+        'wof:placetype': 'country',
+        'mz:population': 'this cannot be parsed an integer',
+        'wof:population': 11
       }
-    ];
-
-    var expected = [
-      {
-        id: 12345,
-        name: 'wof:name value',
-        place_type: 'country',
-        lat: undefined,
-        lon: undefined,
-        population: 11,
-        popularity: undefined,
-        bounding_box: undefined,
-        abbreviation: undefined,
-        hierarchies: [ { country_id: 12345 }]
-      }
-    ];
+    }];
 
     test_stream(input, extractFields.create(), (err, actual) => {
-      t.deepEqual(actual, expected, 'wof:population');
+      t.deepEqual(actual[0].population, 11, 'first integer parseable population used');
       t.end();
     });
-
   });
-
+  test.end();
 });
 
 tape('negative population fallback tests', (test) => {
   test.test('wof:population should be used for population when higher-ranked are unavailable/negative', (t) => {
-    var input = [
-      {
-        id: 12345,
-        properties: {
-          'wof:name': 'wof:name value',
-          'wof:placetype': 'country',
-          'mz:population': -1,
-          'wof:population': 11,
-          'wk:population': 12,
-          'gn:population': 13,
-          'gn:pop': 14,
-          'qs:pop': 15,
-          'qs:gn_pop': 16,
-          'zs:pop10': 17,
-          'meso:pop': 18,
-          'statoids:population': 19,
-          'ne:pop_est': 20
-        }
+    var input = [{
+      id: 12345,
+      properties: {
+        'wof:name': 'wof:name value',
+        'wof:placetype': 'country',
+        'mz:population': -1,
+        'wof:population': 11
       }
-    ];
-
-    var expected = [
-      {
-        id: 12345,
-        name: 'wof:name value',
-        place_type: 'country',
-        lat: undefined,
-        lon: undefined,
-        population: 11,
-        popularity: undefined,
-        bounding_box: undefined,
-        abbreviation: undefined,
-        hierarchies: [ { country_id: 12345 }]
-      }
-    ];
+    }];
 
     test_stream(input, extractFields.create(), (err, actual) => {
-      t.deepEqual(actual, expected, 'wof:population');
+      t.deepEqual(actual[0].population, 11, 'wof:population used over negative mz:population value');
       t.end();
     });
-
-  });
-
-  test.test('wk:population should be used for population when higher-ranked are unavailable/negative', (t) => {
-    var input = [
-      {
-        id: 12345,
-        properties: {
-          'wof:name': 'wof:name value',
-          'wof:placetype': 'country',
-          'wof:population': -1,
-          'wk:population': 12,
-          'gn:population': 13,
-          'gn:pop': 14,
-          'qs:pop': 15,
-          'qs:gn_pop': 16,
-          'zs:pop10': 17,
-          'meso:pop': 18,
-          'statoids:population': 19,
-          'ne:pop_est': 20
-        }
-      }
-    ];
-
-    var expected = [
-      {
-        id: 12345,
-        name: 'wof:name value',
-        place_type: 'country',
-        lat: undefined,
-        lon: undefined,
-        population: 12,
-        popularity: undefined,
-        bounding_box: undefined,
-        abbreviation: undefined,
-        hierarchies: [ { country_id: 12345 }]
-      }
-    ];
-
-    test_stream(input, extractFields.create(), (err, actual) => {
-      t.deepEqual(actual, expected, 'wk:population');
-      t.end();
-    });
-
-  });
-
-  test.test('gn:population should be used for population when higher-ranked are unavailable/negative', (t) => {
-    var input = [
-      {
-        id: 12345,
-        properties: {
-          'wof:name': 'wof:name value',
-          'wof:placetype': 'country',
-          'wk:population': -1,
-          'gn:population': 13,
-          'gn:pop': 14,
-          'qs:pop': 15,
-          'qs:gn_pop': 16,
-          'zs:pop10': 17,
-          'meso:pop': 18,
-          'statoids:population': 19,
-          'ne:pop_est': 20
-        }
-      }
-    ];
-
-    var expected = [
-      {
-        id: 12345,
-        name: 'wof:name value',
-        place_type: 'country',
-        lat: undefined,
-        lon: undefined,
-        population: 13,
-        popularity: undefined,
-        bounding_box: undefined,
-        abbreviation: undefined,
-        hierarchies: [ { country_id: 12345 }]
-      }
-    ];
-
-    test_stream(input, extractFields.create(), (err, actual) => {
-      t.deepEqual(actual, expected, 'gn:population');
-      t.end();
-    });
-
-  });
-
-  test.test('gn:pop should be used for population when higher-ranked are unavailable/negative', (t) => {
-    var input = [
-      {
-        id: 12345,
-        properties: {
-          'wof:name': 'wof:name value',
-          'wof:placetype': 'country',
-          'gn:population': -1,
-          'gn:pop': 14,
-          'qs:pop': 15,
-          'qs:gn_pop': 16,
-          'zs:pop10': 17,
-          'meso:pop': 18,
-          'statoids:population': 19,
-          'ne:pop_est': 20
-        }
-      }
-    ];
-
-    var expected = [
-      {
-        id: 12345,
-        name: 'wof:name value',
-        place_type: 'country',
-        lat: undefined,
-        lon: undefined,
-        population: 14,
-        popularity: undefined,
-        bounding_box: undefined,
-        abbreviation: undefined,
-        hierarchies: [ { country_id: 12345 }]
-      }
-    ];
-
-    test_stream(input, extractFields.create(), (err, actual) => {
-      t.deepEqual(actual, expected, 'gn:pop');
-      t.end();
-    });
-
-  });
-
-  test.test('qs:pop should be used for population when higher-ranked are unavailable/negative', (t) => {
-    var input = [
-      {
-        id: 12345,
-        properties: {
-          'wof:name': 'wof:name value',
-          'wof:placetype': 'country',
-          'gn:pop': -1,
-          'qs:pop': 15,
-          'qs:gn_pop': 16,
-          'zs:pop10': 17,
-          'meso:pop': 18,
-          'statoids:population': 19,
-          'ne:pop_est': 20
-        }
-      }
-    ];
-
-    var expected = [
-      {
-        id: 12345,
-        name: 'wof:name value',
-        place_type: 'country',
-        lat: undefined,
-        lon: undefined,
-        population: 15,
-        popularity: undefined,
-        bounding_box: undefined,
-        abbreviation: undefined,
-        hierarchies: [ { country_id: 12345 }]
-      }
-    ];
-
-    test_stream(input, extractFields.create(), (err, actual) => {
-      t.deepEqual(actual, expected, 'qs:pop');
-      t.end();
-    });
-
-  });
-
-  test.test('qs:gn_pop should be used for population when higher-ranked are unavailable/negative', (t) => {
-    var input = [
-      {
-        id: 12345,
-        properties: {
-          'wof:name': 'wof:name value',
-          'wof:placetype': 'country',
-          'qs:pop': -1,
-          'qs:gn_pop': 16,
-          'zs:pop10': 17,
-          'meso:pop': 18,
-          'statoids:population': 19,
-          'ne:pop_est': 20
-        }
-      }
-    ];
-
-    var expected = [
-      {
-        id: 12345,
-        name: 'wof:name value',
-        place_type: 'country',
-        lat: undefined,
-        lon: undefined,
-        population: 16,
-        popularity: undefined,
-        bounding_box: undefined,
-        abbreviation: undefined,
-        hierarchies: [ { country_id: 12345 }]
-      }
-    ];
-
-    test_stream(input, extractFields.create(), (err, actual) => {
-      t.deepEqual(actual, expected, 'qs:gn_pop');
-      t.end();
-    });
-
-  });
-
-  test.test('zs:pop10 should be used for population when higher-ranked are unavailable/negative', (t) => {
-    var input = [
-      {
-        id: 12345,
-        properties: {
-          'wof:name': 'wof:name value',
-          'wof:placetype': 'country',
-          'qs:gn_pop': -1,
-          'zs:pop10': 17,
-          'meso:pop': 18,
-          'statoids:population': 19,
-          'ne:pop_est': 20
-        }
-      }
-    ];
-
-    var expected = [
-      {
-        id: 12345,
-        name: 'wof:name value',
-        place_type: 'country',
-        lat: undefined,
-        lon: undefined,
-        population: 17,
-        popularity: undefined,
-        bounding_box: undefined,
-        abbreviation: undefined,
-        hierarchies: [ { country_id: 12345 }]
-      }
-    ];
-
-    test_stream(input, extractFields.create(), (err, actual) => {
-      t.deepEqual(actual, expected, 'zs:pop10');
-      t.end();
-    });
-
-  });
-
-  test.test('meso:pop should be used for population when higher-ranked are unavailable/negative', (t) => {
-    var input = [
-      {
-        id: 12345,
-        properties: {
-          'wof:name': 'wof:name value',
-          'wof:placetype': 'country',
-          'zs:pop10': -1,
-          'meso:pop': 18,
-          'statoids:population': 19,
-          'ne:pop_est': 20
-        }
-      }
-    ];
-
-    var expected = [
-      {
-        id: 12345,
-        name: 'wof:name value',
-        place_type: 'country',
-        lat: undefined,
-        lon: undefined,
-        population: 18,
-        popularity: undefined,
-        bounding_box: undefined,
-        abbreviation: undefined,
-        hierarchies: [ { country_id: 12345 }]
-      }
-    ];
-
-    test_stream(input, extractFields.create(), (err, actual) => {
-      t.deepEqual(actual, expected, 'meso:pop');
-      t.end();
-    });
-
-  });
-
-  test.test('statoids:population should be used for population when higher-ranked are unavailable/negative', (t) => {
-    var input = [
-      {
-        id: 12345,
-        properties: {
-          'wof:name': 'wof:name value',
-          'wof:placetype': 'country',
-          'meso:pop': -1,
-          'statoids:population': 19,
-          'ne:pop_est': 20
-        }
-      }
-    ];
-
-    var expected = [
-      {
-        id: 12345,
-        name: 'wof:name value',
-        place_type: 'country',
-        lat: undefined,
-        lon: undefined,
-        population: 19,
-        popularity: undefined,
-        bounding_box: undefined,
-        abbreviation: undefined,
-        hierarchies: [ { country_id: 12345 }]
-      }
-    ];
-
-    test_stream(input, extractFields.create(), (err, actual) => {
-      t.deepEqual(actual, expected, 'statoids:population');
-      t.end();
-    });
-
-  });
-
-  test.test('ne:pop_est should be used for population when higher-ranked are unavailable/negative', (t) => {
-    var input = [
-      {
-        id: 12345,
-        properties: {
-          'wof:name': 'wof:name value',
-          'wof:placetype': 'country',
-          'statoids:population': -1,
-          'ne:pop_est': 20
-        }
-      }
-    ];
-
-    var expected = [
-      {
-        id: 12345,
-        name: 'wof:name value',
-        place_type: 'country',
-        lat: undefined,
-        lon: undefined,
-        population: 20,
-        popularity: undefined,
-        bounding_box: undefined,
-        abbreviation: undefined,
-        hierarchies: [ { country_id: 12345 }]
-      }
-    ];
-
-    test_stream(input, extractFields.create(), (err, actual) => {
-      t.deepEqual(actual, expected, 'ne:pop_est');
-      t.end();
-    });
-
   });
 
   test.test('population should be undefined when there are no non-negative population fields', (t) => {
-    var input = [
-      {
-        id: 12345,
-        properties: {
-          'wof:name': 'wof:name value',
-          'wof:placetype': 'country',
-          'ne:pop_est': -1
-        }
+    var input = [{
+      id: 12345,
+      properties: {
+        'wof:name': 'wof:name value',
+        'wof:placetype': 'country',
+        'ne:pop_est': -1
       }
-    ];
-
-    var expected = [
-      {
-        id: 12345,
-        name: 'wof:name value',
-        place_type: 'country',
-        lat: undefined,
-        lon: undefined,
-        population: undefined,
-        popularity: undefined,
-        bounding_box: undefined,
-        abbreviation: undefined,
-        hierarchies: [ { country_id: 12345 }]
-      }
-    ];
+    }];
 
     test_stream(input, extractFields.create(), (err, actual) => {
-      t.deepEqual(actual, expected, 'population should be undefined');
+      t.deepEqual(actual[0].population, undefined, 'population should be undefined');
       t.end();
     });
+  });
+});
 
+tape('name alias tests', (test) => {
+  test.test('name:preferred and name:variant fields used to populate name_aliases, using english as default language', function (t) {
+    var input = [{
+      id: 23456,
+      properties: {
+        'name:eng_x_preferred': ['preferred1', 'preferred2', 'preferred1'],
+        'name:eng_x_variant': ['variant1', 'variant2', 'variant1'],
+        'name:eng_x_colloquial': ['colloquial1', 'colloquial2', 'colloquial1'],
+        'label:eng_x_preferred_longname': ['englabel1', 'englabel2', 'englabel1'],
+        'label:spa_x_preferred_longname': ['spalabel1', 'spalabel2', 'spalabel1'],
+        'label:fra_x_preferred_longname': ['fralabel1', 'fralabel2', 'fralabel1']
+      }
+    }];
 
-  test.test('should define coordinates if polygon data present', t => {
-    const input = [
+    const expected_name_aliases = ['preferred1', 'preferred2', 'variant1', 'variant2', 'englabel1', 'englabel2'];
+
+    test_stream(input, extractFields.create(), function (err, actual) {
+      t.deepEqual(actual[0].name_aliases, expected_name_aliases, 'name aliases populated from preferred and variant fields');
+      t.end();
+    });
+  });
+
+  test.test('name aliases populated from official language (plus english) preferred and variant fields', function (t) {
+    var input = [
       {
-        id: 12345,
+        id: 23456,
         properties: {
-          'wof:name': 'name 1',
-          'wof:placetype': 'place type 1',
-          'geom:latitude': 12.121212,
-          'geom:longitude': 21.212121,
-          'geom:bbox': '-13.691314,49.909613,1.771169,60.847886',
-          'geom:coordinates': ''
+          'name:spa_x_preferred': ['preferred1', 'preferred2', 'preferred1'],
+          'name:spa_x_variant': ['variant1', 'variant2', 'variant1'],
+          'name:spa_x_colloquial': ['colloquial1', 'colloquial2', 'colloquial1'],
+          'label:eng_x_preferred_longname': ['englabel1', 'englabel2', 'englabel1'],
+          'label:spa_x_preferred_longname': ['spalabel1', 'spalabel2', 'spalabel1'],
+          'label:fra_x_preferred_longname': ['fralabel1', 'fralabel2', 'fralabel1'],
+          'wof:lang_x_official': ['spa','fra']
         }
       }
     ];
 
-    const expected = [
+    const expected_name_aliases = [
+      'preferred1', 'preferred2',
+      'variant1', 'variant2',
+      'spalabel1', 'spalabel2',
+      'fralabel1', 'fralabel2',
+      'englabel1', 'englabel2'
+    ];
+
+    test_stream(input, extractFields.create(), function (err, actual) {
+      t.deepEqual(actual[0].name_aliases, expected_name_aliases, 'name aliases sourced from official languages and english');
+      t.end();
+    });
+  });
+
+  test.end();
+});
+
+tape('multi-lang index test', (test) => {
+  test.test('all elements in default language should not be in other indexes', function (t) {
+    var input = [{
+      id: 54321,
+      properties: {
+        'wof:name': ['default1', 'default2'],
+        'name:eng_x_preferred': ['preferredENG1'],
+        'name:fra_x_preferred': ['default1', 'preferredFRA1', 'preferredFRA2'],
+        'name:spa_x_variant': ['default2', 'variantSPA1', 'variantSPA2'],
+      }
+    }];
+
+    const expected_name_langs = {
+      'en': ['preferredENG1'],
+      'fr': ['preferredFRA1', 'preferredFRA2'],
+      'es': ['variantSPA1', 'variantSPA2']
+    };
+
+    test_stream(input, extractFields.create(), function (err, actual) {
+      t.deepEqual(actual[0].name_langs, expected_name_langs, 'name langs populated from fr preferred and SPA variant fields');
+      t.end();
+    });
+  });
+
+  test.test('name langs should be without duplicates', function (t) {
+    var input = [
       {
-        id: 12345,
-        name: 'name 1',
-        place_type: 'place type 1',
-        lat: 12.121212,
-        lon: 21.212121,
-        population: undefined,
-        popularity: undefined,
-        abbreviation: undefined,
-        bounding_box: '-13.691314,49.909613,1.771169,60.847886',
-        hierarchies: [
-          {
-            'place type 1_id': 12345
-          }
-        ]
+        id: 54321,
+        properties: {
+          'name:fra_x_preferred': ['preferredFRA1', 'preferredFRA2', 'preferredFRA2'],
+          'name:spa_x_preferred': ['variantSPA1', 'variantSPA1', 'variantSPA2'],
+          'wof:name': ['prefered1']
+        }
       }
     ];
 
-    test_stream(input, extractFields.create(), function(err, actual) {
-      t.deepEqual(actual, expected, 'stream should contain only objects with id and properties');
+    const expected_name_langs = {
+      'fr': ['preferredFRA1', 'preferredFRA2'],
+      'es': ['variantSPA1', 'variantSPA2']
+    };
+
+    test_stream(input, extractFields.create(), function (err, actual) {
+      t.deepEqual(actual[0].name_langs, expected_name_langs, 'should not have duplicates');
+      t.end();
+    });
+  });
+
+  test.test('name langs should concat iso639-2B and iso639-2T', function (t) {
+    var input = [
+      {
+        id: 54321,
+        properties: {
+          'name:fra_x_preferred': ['preferredFRA1', 'preferredFRA2'],
+          'name:fre_x_preferred': ['preferredFRE1'],
+          'wof:name': ['prefered1']
+        }
+      }
+    ];
+
+    const expected_name_langs = {
+      'fr': ['preferredFRA1', 'preferredFRA2', 'preferredFRE1']
+    };
+
+    test_stream(input, extractFields.create(), function (err, actual) {
+      t.deepEqual(actual[0].name_langs, expected_name_langs, 'should not have duplicates');
       t.end();
     });
 
+    test.end();
   });
-  });
-
 });
