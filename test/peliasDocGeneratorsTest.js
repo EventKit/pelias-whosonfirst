@@ -654,62 +654,6 @@ tape('create', function(test) {
 
   });
 
-  test.test('polygon data should be incorporated if present', function(t) {
-    var wofRecords = {
-      1: {
-        id: 1,
-        name: 'record name',
-        name_aliases: [],
-        abbreviation: 'record abbreviation',
-        lat: 12.121212,
-        lon: 21.212121,
-        place_type: 'region',
-        geometry: {
-          'type': 'Polygon',
-          'coordinates': [
-            [
-              [100.0, 0.0],
-              [101.0, 0.0],
-              [101.0, 1.0],
-              [100.0, 1.0],
-              [100.0, 0.0]
-            ]
-          ]
-        }
-      }
-    };
-
-    // extract all the values from wofRecords to an array since that's how test_stream works
-    // sure, this could be done with map, but this is clearer
-    var input = [
-      wofRecords['1']
-    ];
-
-    var expected = [
-      new Document( 'whosonfirst', 'region', '1')
-          .setName('default', 'record name')
-          .setCentroid({ lat: 12.121212, lon: 21.212121 })
-          .setPolygon(wofRecords[1].geometry)
-          .addParent( 'region', 'record name', '1', 'record abbreviation')
-
-    ];
-
-    var hierarchies_finder = function() {
-      return [
-        [
-          wofRecords['1']
-        ]
-      ];
-    };
-
-    var docGenerator = peliasDocGenerators.create(hierarchies_finder);
-
-    test_stream(input, docGenerator, function(err, actual) {
-      t.deepEqual(actual, expected, 'should have returned true');
-    });
-    t.end();
-  });
-
   test.test('errors: should catch model errors and continue', function (t) {
 
     // trigger model to throw an exception by providing an invalid name
@@ -750,19 +694,7 @@ tape('create', function(test) {
         lon: 21.212121,
         place_type: 'country',
         abbreviation: 'JP',
-        popularity: 25000,
-        geometry: {
-          'type': 'Polygon',
-          'coordinates': [
-            [
-              [100.0, 0.0],
-              [101.0, 0.0],
-              [101.0, 1.0],
-              [100.0, 1.0],
-              [100.0, 0.0]
-            ]
-          ]
-        }
+        popularity: 25000
       }
     };
 
@@ -778,7 +710,6 @@ tape('create', function(test) {
         .setNameAlias('fr', 'Pays Du Soleil Levant')
         .setCentroid({ lat: 12.121212, lon: 21.212121 })
         .addParent('country', 'Japan', '1', 'JPN')
-        .setPolygon(wofRecords[1].geometry)
         .setPopularity(25000)
     ];
 
@@ -800,4 +731,5 @@ tape('create', function(test) {
   });
 
   test.end();
+
 });

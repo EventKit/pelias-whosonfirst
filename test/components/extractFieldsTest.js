@@ -967,7 +967,7 @@ tape('name alias tests', (test) => {
           'wof:lang_x_official': ['spa','fra']
         }
       }
-    ];
+    }];
 
     const expected_name_aliases = [
       'preferred1', 'preferred2',
@@ -1053,7 +1053,32 @@ tape('multi-lang index test', (test) => {
       t.deepEqual(actual[0].name_langs, expected_name_langs, 'should not have duplicates');
       t.end();
     });
-
-    test.end();
   });
+
+  test.test('WOF_NAMES_REGEX should be anchored (do not allow prefixes and suffixes)', function (t) {
+    var input = [
+      {
+        id: 54321,
+        properties: {
+          'name:fra_x_preferred': ['example1'],
+          'name:fra_x_preferred_foo': ['example2'],
+          'foo_name:fra_x_preferred': ['example3'],
+          'label:fra_x_preferred': ['example4'],
+          'label:fra_x_preferred_foo': ['example5'],
+          'foo_label:fra_x_preferred': ['example6']
+        }
+      }
+    ];
+
+    const expected_name_langs = {
+      'fr': ['example1', 'example4']
+    };
+
+    test_stream(input, extractFields.create(), function (err, actual) {
+      t.deepEqual(actual[0].name_langs, expected_name_langs, 'should not have duplicates');
+      t.end();
+    });
+  });
+
+  test.end();
 });
