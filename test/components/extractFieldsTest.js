@@ -967,7 +967,7 @@ tape('name alias tests', (test) => {
           'wof:lang_x_official': ['spa','fra']
         }
       }
-    }];
+    ];
 
     const expected_name_aliases = [
       'preferred1', 'preferred2',
