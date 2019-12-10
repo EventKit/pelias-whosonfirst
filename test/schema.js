@@ -1,7 +1,7 @@
 
 const tape = require('tape');
 
-const Joi = require('joi');
+const Joi = require('@hapi/joi');
 const schema = require('../schema');
 
 function validate(config) {
@@ -236,6 +236,7 @@ tape('tests for looking up hierarchies', function(test) {
     t.end();
 
   });
+  test.end();
 
 });
 
@@ -391,5 +392,6 @@ tape('battery of importPlace tests', test => {
     t.end();
 
   });
+  test.end();
 
 });

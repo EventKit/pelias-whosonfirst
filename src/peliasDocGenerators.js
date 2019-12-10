@@ -1,8 +1,9 @@
-var through2 = require('through2');
-var _ = require('lodash');
-var iso3166 = require('iso3166-1');
+const through2 = require('through2');
+const _ = require('lodash');
+const iso3166 = require('iso3166-1');
+const logger = require('pelias-logger').get('whosonfirst');
 
-var Document = require('pelias-model').Document;
+const Document = require('pelias-model').Document;
 
 module.exports = {};
 
@@ -56,6 +57,18 @@ function assignField(hierarchyElement, wofDoc) {
 
 }
 
+function addMultiLangAliases(wofDoc, name_langs) {
+  for (let lang in name_langs) {
+    for (let i = 0; i < name_langs[lang].length; i++) {
+      if (i === 0) {
+        wofDoc.setName(lang, name_langs[lang][i]);
+      } else {
+        wofDoc.setNameAlias(lang, name_langs[lang][i]);
+      }
+    }
+  }
+}
+
 // method that extracts the logic for Document creation.  `hierarchy` is optional
 function setupDocument(record, hierarchy) {
   var wofDoc = new Document( 'whosonfirst', record.place_type, record.id );
@@ -68,6 +81,18 @@ function setupDocument(record, hierarchy) {
       var sans_whitespace = record.name.replace(/\s/g, '');
       if (sans_whitespace !== record.name) {
         wofDoc.setNameAlias('default', sans_whitespace);
+      }
+    }
+
+    // index name aliases for all other records (where available)
+    else {
+      if (record.name_aliases.length) {
+        record.name_aliases.forEach(alias => {
+          wofDoc.setNameAlias('default', alias);
+        });
+      }
+      if (record.name_langs) {
+        addMultiLangAliases(wofDoc, record.name_langs);
       }
     }
   }
@@ -128,14 +153,19 @@ module.exports.create = function(hierarchy_finder) {
     // if there are no hierarchies, then just return the doc as-is
     var hierarchies = hierarchy_finder(record);
 
-    if (hierarchies && hierarchies.length > 0) {
-      hierarchies.forEach(function(hierarchy) {
-        this.push(setupDocument(record, hierarchy));
-      }, this);
+    try {
+      if (hierarchies && hierarchies.length > 0) {
+        hierarchies.forEach(function(hierarchy) {
+          this.push(setupDocument(record, hierarchy));
+        }, this);
 
-    } else {
-      this.push(setupDocument(record));
-
+      } else {
+        this.push(setupDocument(record));
+      }
+    }
+    catch (e) {
+      logger.error(`doc generator error: ${e.message}`);
+      logger.error(JSON.stringify(record, null, 2));
     }
 
     next();

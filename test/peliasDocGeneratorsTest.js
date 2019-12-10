@@ -22,6 +22,7 @@ tape('create', function(test) {
         1: {
           id: 1,
           name: 'record name',
+          name_aliases: [],
           lat: 12.121212,
           lon: 21.212121,
           place_type: place_type
@@ -73,6 +74,7 @@ tape('create', function(test) {
       1: {
         id: 1,
         name: 'record name',
+        name_aliases: [],
         abbreviation: 'record abbreviation',
         lat: 12.121212,
         lon: 21.212121,
@@ -116,6 +118,7 @@ tape('create', function(test) {
       1: {
         id: 1,
         name: 'record name',
+        name_aliases: [],
         abbreviation: 'XY',
         lat: 12.121212,
         lon: 21.212121,
@@ -159,6 +162,7 @@ tape('create', function(test) {
       1: {
         id: 1,
         name: 'record name',
+        name_aliases: [],
         abbreviation: 'PR',
         lat: 12.121212,
         lon: 21.212121,
@@ -202,6 +206,7 @@ tape('create', function(test) {
       1: {
         id: 1,
         name: 'record name',
+        name_aliases: [],
         abbreviation: 'FR',
         lat: 12.121212,
         lon: 21.212121,
@@ -245,6 +250,7 @@ tape('create', function(test) {
       1: {
         id: 1,
         name: 'name 1',
+        name_aliases: [],
         lat: 12.121212,
         lon: 21.212121,
         bounding_box: '12.121212,21.212121,13.131313,31.313131',
@@ -281,7 +287,8 @@ tape('create', function(test) {
     var wofRecords = {
      1: {
        id: 1,
-       name: 'name 1',
+      name: 'name 1',
+      name_aliases: [],
        lat: 12.121212,
        lon: 21.212121,
        place_type: 'continent'
@@ -353,6 +360,7 @@ tape('create', function(test) {
       1: {
         id: 1,
         name: 'United States',
+        name_aliases: [],
         lat: 12.121212,
         lon: 21.212121,
         place_type: 'country',
@@ -396,6 +404,7 @@ tape('create', function(test) {
       1: {
         id: 1,
         name: 'United States',
+        name_aliases: [],
         lat: 12.121212,
         lon: 21.212121,
         place_type: 'country',
@@ -440,6 +449,7 @@ tape('create', function(test) {
       1: {
         id: 1,
         name: 'United States',
+        name_aliases: [],
         lat: 12.121212,
         lon: 21.212121,
         place_type: 'country',
@@ -483,6 +493,7 @@ tape('create', function(test) {
       1: {
         id: 1,
         name: 'United States',
+        name_aliases: [],
         lat: 12.121212,
         lon: 21.212121,
         place_type: 'country',
@@ -522,11 +533,64 @@ tape('create', function(test) {
 
   });
 
+  test.test('name aliases should be set on doc', function (t) {
+    var wofRecords = {
+      1: {
+        id: 1,
+        name: 'United States',
+        name_aliases: [
+          'preferred1', 'preferred2',
+          'variant1', 'variant2'
+        ],
+        lat: 12.121212,
+        lon: 21.212121,
+        place_type: 'country',
+        abbreviation: 'US',
+        popularity: 87654
+      }
+    };
+
+    // extract all the values from wofRecords to an array since that's how test_stream works
+    // sure, this could be done with map, but this is clearer
+    var input = [
+      wofRecords['1']
+    ];
+
+    var expected = [
+      new Document('whosonfirst', 'country', '1')
+        .setName('default', 'United States')
+        .setNameAlias('default', 'preferred1')
+        .setNameAlias('default', 'preferred2')
+        .setNameAlias('default', 'variant1')
+        .setNameAlias('default', 'variant2')
+        .setCentroid({ lat: 12.121212, lon: 21.212121 })
+        .addParent('country', 'United States', '1', 'USA')
+        .setPopularity(87654)
+    ];
+
+    var hierarchies_finder = function () {
+      return [
+        [
+          wofRecords['1']
+        ]
+      ];
+    };
+
+    var docGenerator = peliasDocGenerators.create(hierarchies_finder);
+
+    test_stream(input, docGenerator, function (err, actual) {
+      t.deepEqual(actual, expected, 'population should not be set');
+      t.end();
+    });
+
+  });
+
   test.test('a document should be created for each available hierarchy', function(t) {
     var wofRecords = {
       1: {
         id: 1,
         name: 'neighbourhood name',
+        name_aliases: [],
         lat: 12.121212,
         lon: 21.212121,
         place_type: 'neighbourhood'
@@ -534,6 +598,7 @@ tape('create', function(test) {
       2: {
         id: 2,
         name: 'country name 1',
+        name_aliases: [],
         lat: 13.131313,
         lon: 31.313131,
         place_type: 'country'
@@ -541,6 +606,7 @@ tape('create', function(test) {
       3: {
         id: 3,
         name: 'country name 2',
+        name_aliases: [],
         lat: 14.141414,
         lon: 41.414141,
         place_type: 'country'
@@ -588,90 +654,66 @@ tape('create', function(test) {
 
   });
 
+  test.test('errors: should catch model errors and continue', function (t) {
 
-  test.test('region should honor abbreviations when available', function(t) {
-    var wofRecords = {
-      1: {
-        id: 1,
-        name: 'record name',
-        abbreviation: 'record abbreviation',
-        lat: 12.121212,
-        lon: 21.212121,
-        place_type: 'region'
-      }
-    };
+    // trigger model to throw an exception by providing an invalid name
+    var input = [{
+      id: 1,
+      name: 'http://urls_not_allowed_here',
+      place_type: 'country'
+    }];
 
-    // extract all the values from wofRecords to an array since that's how test_stream works
-    // sure, this could be done with map, but this is clearer
-    var input = [
-      wofRecords['1']
-    ];
+    t.doesNotThrow(() => {
+      var docGenerator = peliasDocGenerators.create(() => {
+        return [[input[0]]];
+      });
 
-    var expected = [
-      new Document( 'whosonfirst', 'region', '1')
-        .setName('default', 'record name')
-        .setCentroid({ lat: 12.121212, lon: 21.212121 })
-        .addParent( 'region', 'record name', '1', 'record abbreviation')
-    ];
-
-    var hierarchies_finder = function() {
-      return [
-        [
-          wofRecords['1']
-        ]
-      ];
-    };
-
-    var docGenerator = peliasDocGenerators.create(hierarchies_finder);
-
-    test_stream(input, docGenerator, function(err, actual) {
-      t.deepEqual(actual, expected, 'should have returned true');
+      test_stream(input, docGenerator, function (err, actual) {
+        t.deepEqual(actual, [], 'should throw error and continue');
+        t.end();
+      }, /should not match/, 'should catch + log model errors');
     });
-
-    t.end();
 
   });
 
-  test.test('polygon data should be incorporated if present', function(t) {
+  test.test('name langs should be set on doc', function (t) {
     var wofRecords = {
       1: {
         id: 1,
-        name: 'record name',
-        abbreviation: 'record abbreviation',
-        lat: 12.121212,
-        lon: 21.212121,
-        place_type: 'region',
-        geometry: {
-          'type': 'Polygon',
-          'coordinates': [
-              [
-                  [100.0, 0.0],
-                  [101.0, 0.0],
-                  [101.0, 1.0],
-                  [100.0, 1.0],
-                  [100.0, 0.0]
-              ]
+        name: 'Japan',
+        name_aliases: [],
+        name_langs: {
+          'jp': [
+            'Nihon'
+          ],
+          'fr': [
+            'Japon', 'Pays Du Soleil Levant'
           ]
-        }
+        },
+        lat: 12.121212,
+        lon: 21.212121,
+        place_type: 'country',
+        abbreviation: 'JP',
+        popularity: 25000
       }
     };
 
-    // extract all the values from wofRecords to an array since that's how test_stream works
-    // sure, this could be done with map, but this is clearer
     var input = [
       wofRecords['1']
     ];
 
     var expected = [
-      new Document( 'whosonfirst', 'region', '1')
-        .setName('default', 'record name')
+      new Document('whosonfirst', 'country', '1')
+        .setName('default', 'Japan')
+        .setName('jp', 'Nihon')
+        .setName('fr', 'Japon')
+        .setNameAlias('fr', 'Pays Du Soleil Levant')
         .setCentroid({ lat: 12.121212, lon: 21.212121 })
-        .setPolygon(wofRecords[1].geometry)
-        .addParent( 'region', 'record name', '1', 'record abbreviation')
-
+        .addParent('country', 'Japan', '1', 'JPN')
+        .setPopularity(25000)
     ];
 
-    var hierarchies_finder = function() {
+    var hierarchies_finder = function () {
       return [
         [
           wofRecords['1']
@@ -681,12 +723,13 @@ tape('create', function(test) {
 
     var docGenerator = peliasDocGenerators.create(hierarchies_finder);
 
-    test_stream(input, docGenerator, function(err, actual) {
-      t.deepEqual(actual, expected, 'should have returned true');
+    test_stream(input, docGenerator, function (err, actual) {
+      t.deepEqual(actual, expected, 'population should not be set');
+      t.end();
     });
 
-    t.end();
-
   });
+
+  test.end();
 
 });
