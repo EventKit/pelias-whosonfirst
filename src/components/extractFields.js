@@ -182,11 +182,13 @@ function getHierarchies(id, properties) {
 }
 
 function getPolygonGeometry(object){
-  if(object.geometry.type === 'Polygon' || object.geometry.type === 'MultiPolygon'){
-    if(config.imports.whosonfirst.simplifyPolygons) {
-      return simplifyGeometry(object.geometry);
+  if(object.geometry) {
+    if (object.geometry.type === 'Polygon' || object.geometry.type === 'MultiPolygon') {
+      if (config.imports.whosonfirst.simplifyPolygons) {
+        return simplifyGeometry(object.geometry);
+      }
+      return object.geometry;
     }
-    return object.geometry;
   }
 }
 
